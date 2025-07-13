@@ -1,120 +1,163 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import linprog
+from matplotlib.ticker import FuncFormatter
 
-# ============================
+# ==============================
 # Konfigurasi Halaman
-# ============================
+# ==============================
 st.set_page_config(page_title="Optimasi Produksi", layout="centered")
-st.title("📈 Optimasi Produksi Sepatu & Tas (Linear Programming)")
 
-# ============================
-# Studi Kasus dan Rumus
-# ============================
-st.markdown("## 📚 Studi Kasus")
+st.title("1️⃣ Optimasi Produksi (Linear Programming)")
+
+# ==============================
+# Deskripsi Studi Kasus
+# ==============================
 st.markdown("""
-PT **Prima Citra Indonesia** memproduksi **Sepatu (X)** dan **Tas (Y)** untuk memperoleh keuntungan maksimum.  
-Perusahaan memiliki keterbatasan dalam:
-- ⏱ Waktu produksi
-- 🧱 Bahan baku
-- 👷 Tenaga kerja
-
-### 🎯 Fungsi Tujuan
+### 🔧 Studi Kasus
+PT Prima Citra Indonesia memproduksi **Sepatu (X)** dan **Tas (Y)**. Untuk mengetahui jumlah penjualan dan keuntungan dari produksi, pemilik menggunakan model matematika berikut:
 """)
+
 st.latex(r"Z = c_1 X + c_2 Y")
 
-st.markdown("### ⛓️ Kendala Produksi")
-st.latex(r"""
-\begin{cases}
-a_1 X + a_2 Y \leq \text{Waktu Maks} \\
-b_1 X + b_2 Y \leq \text{Bahan Baku Maks} \\
-t_1 X + t_2 Y \leq \text{Tenaga Kerja Maks} \\
-X \geq 0,\quad Y \geq 0
-\end{cases}
+st.markdown("### 📘 Keterangan Notasi:")
+st.markdown(r"""
+- $Z$  = Total keuntungan  
+- $c_1$ = Keuntungan per unit Sepatu (X)  
+- $c_2$ = Keuntungan per unit Tas (Y)  
+- $X$  = Jumlah unit Sepatu  
+- $Y$  = Jumlah unit Tas
 """)
 
-st.markdown("### 📘 Keterangan:")
-st.markdown("""
-- \( X \), \( Y \) = Jumlah sepatu & tas yang diproduksi  
-- \( c_1 \), \( c_2 \) = Keuntungan per unit  
-- \( a, b, t \) = Koefisien waktu, bahan, tenaga kerja  
-""")
-
-# ============================
-# Input Data Interaktif
-# ============================
-st.markdown("## 📥 Masukkan Parameter Produksi")
+# ==============================
+# Input Pengguna
+# ==============================
+st.markdown("### 📥 Masukkan Nilai Produksi")
 
 col1, col2 = st.columns(2)
 with col1:
-    c1 = st.number_input("Keuntungan per Sepatu (Rp)", value=40000)
-    a1 = st.number_input("Waktu per Sepatu (jam)", value=2)
-    b1 = st.number_input("Bahan Baku per Sepatu (unit)", value=1)
-    t1 = st.number_input("Tenaga Kerja per Sepatu (jam)", value=1)
+    x = st.number_input("Jumlah Produksi Sepatu (X)", value=0)
+    laba_sepatu = st.number_input("Keuntungan per Sepatu (c₁)", value=0)
+    harga_sepatu = st.number_input("Harga Jual Sepatu", value=0)
 with col2:
-    c2 = st.number_input("Keuntungan per Tas (Rp)", value=30000)
-    a2 = st.number_input("Waktu per Tas (jam)", value=1)
-    b2 = st.number_input("Bahan Baku per Tas (unit)", value=1)
-    t2 = st.number_input("Tenaga Kerja per Tas (jam)", value=2)
+    y = st.number_input("Jumlah Produksi Tas (Y)", value=0)
+    laba_tas = st.number_input("Keuntungan per Tas (c₂)", value=0)
+    harga_tas = st.number_input("Harga Jual Tas", value=0)
 
-st.markdown("### 🔒 Kapasitas Maksimum:")
-waktu_maks = st.number_input("Total Waktu Tersedia (jam)", value=100)
-bahan_maks = st.number_input("Total Bahan Baku Tersedia (unit)", value=80)
-tenaga_maks = st.number_input("Total Tenaga Kerja Tersedia (jam)", value=90)
+# ==============================
+# Tambahan: Input Tenaga Kerja
+# ==============================
+st.markdown("### 👷 Input Tenaga Kerja")
 
-# ============================
-# Linear Programming
-# ============================
-st.markdown("## 🧮 Solusi Linear Programming")
+col3, col4 = st.columns(2)
+with col3:
+    tenaga_sepatu = st.number_input("Tenaga kerja per unit Sepatu", value=0)
+with col4:
+    tenaga_tas = st.number_input("Tenaga kerja per unit Tas", value=0)
 
-c = [-c1, -c2]  # karena linprog = minimisasi
-A = [
-    [a1, a2],  # waktu
-    [b1, b2],  # bahan
-    [t1, t2]   # tenaga
-]
-b = [waktu_maks, bahan_maks, tenaga_maks]
+total_tenaga_kerja_tersedia = st.number_input("Total Tenaga Kerja Tersedia (Opsional)", value=0)
 
-res = linprog(c, A_ub=A, b_ub=b, bounds=[(0, None), (0, None)], method='highs')
+# ==============================
+# Fungsi Format Rupiah
+# ==============================
+def format_rupiah(nilai):
+    return f"Rp {nilai:,.0f}".replace(",", ".")
 
-if res.success:
-    x_opt, y_opt = res.x
-    z_opt = -res.fun
+# ==============================
+# Perhitungan Fungsi Tujuan Z
+# ==============================
+if all([x, y, laba_sepatu, laba_tas]):
+    Z = laba_sepatu * x + laba_tas * y
 
-    st.success("✅ Solusi Optimal Ditemukan:")
-    st.write(f"Jumlah Sepatu (X): {x_opt:.2f} unit")
-    st.write(f"Jumlah Tas (Y): {y_opt:.2f} unit")
-    st.write(f"Total Keuntungan Maksimum: Rp {z_opt:,.0f}")
+    st.subheader("🧮 Perhitungan Fungsi Tujuan Z")
+    st.latex(rf"""
+    \begin{{align*}}
+    Z &= c_1 \cdot X + c_2 \cdot Y \\
+      &= {laba_sepatu} \cdot {x} + {laba_tas} \cdot {y} \\
+      &= {Z:,.0f}
+    \end{{align*}}
+    """)
 
-    # ============================
-    # Visualisasi Grafik
-    # ============================
-    st.markdown("## 📊 Visualisasi Area Feasible")
+    # Biaya Produksi = Harga Jual - Laba
+    biaya_sepatu = harga_sepatu - laba_sepatu
+    biaya_tas = harga_tas - laba_tas
 
-    x_vals = np.linspace(0, max(x_opt * 1.5, 100), 200)
-    y1 = (waktu_maks - a1 * x_vals) / a2
-    y2 = (bahan_maks - b1 * x_vals) / b2
-    y3 = (tenaga_maks - t1 * x_vals) / t2
+    # ==============================
+    # Perhitungan Tenaga Kerja
+    # ==============================
+    if all([tenaga_sepatu, tenaga_tas]):
+        total_tk_sepatu = tenaga_sepatu * x
+        total_tk_tas = tenaga_tas * y
+        total_tk_dibutuhkan = total_tk_sepatu + total_tk_tas
+
+        st.markdown("### 👨‍🔧 Total Kebutuhan Tenaga Kerja")
+        st.write(f"Untuk Sepatu: {total_tk_sepatu} orang-jam")
+        st.write(f"Untuk Tas: {total_tk_tas} orang-jam")
+        st.write(f"Total: {total_tk_dibutuhkan} orang-jam")
+
+        if total_tenaga_kerja_tersedia > 0:
+            if total_tk_dibutuhkan > total_tenaga_kerja_tersedia:
+                st.error(f"❌ Kebutuhan tenaga kerja ({total_tk_dibutuhkan}) melebihi kapasitas tersedia ({total_tenaga_kerja_tersedia})")
+            else:
+                st.success(f"✅ Kebutuhan tenaga kerja ({total_tk_dibutuhkan}) masih dalam batas kapasitas ({total_tenaga_kerja_tersedia})")
+
+    # ==============================
+    # Perhitungan Penjualan dan Keuntungan
+    # ==============================
+    total_penjualan_sepatu = harga_sepatu * x
+    total_penjualan_tas = harga_tas * y
+    total_penjualan = total_penjualan_sepatu + total_penjualan_tas
+
+    total_laba_sepatu = laba_sepatu * x
+    total_laba_tas = laba_tas * y
+    total_laba = total_laba_sepatu + total_laba_tas
+
+    # ==============================
+    # Output Ringkasan
+    # ==============================
+    st.markdown("### 💰 Total Penjualan")
+    st.write(f"Sepatu: {format_rupiah(total_penjualan_sepatu)}")
+    st.write(f"Tas: {format_rupiah(total_penjualan_tas)}")
+    st.write(f"Total: {format_rupiah(total_penjualan)}")
+
+    st.markdown("### 💵 Total Keuntungan")
+    st.write(f"Sepatu: {format_rupiah(total_laba_sepatu)}")
+    st.write(f"Tas: {format_rupiah(total_laba_tas)}")
+    st.write(f"Total: {format_rupiah(total_laba)}")
+
+    # ==============================
+    # Grafik Perbandingan
+    # ==============================
+    st.markdown("### 📊 Diagram Perbandingan")
+
+    kategori = ['Sepatu (X)', 'Tas (Y)', 'Total']
+    penjualan = [total_penjualan_sepatu, total_penjualan_tas, total_penjualan]
+    keuntungan = [total_laba_sepatu, total_laba_tas, total_laba]
+
+    x_pos = np.arange(len(kategori))
+    width = 0.35
 
     fig, ax = plt.subplots()
-    ax.plot(x_vals, y1, label="Waktu", color="blue")
-    ax.plot(x_vals, y2, label="Bahan Baku", color="green")
-    ax.plot(x_vals, y3, label="Tenaga Kerja", color="orange")
 
-    y_min = np.minimum.reduce([y1, y2, y3])
-    ax.fill_between(x_vals, y_min, 0, where=(y_min >= 0), color='lightblue', alpha=0.3)
+    bar1 = ax.bar(x_pos - width/2, keuntungan, width=width, label='Keuntungan', color='skyblue')
+    bar2 = ax.bar(x_pos + width/2, penjualan, width=width, label='Penjualan', color='lightgreen')
 
-    ax.scatter(x_opt, y_opt, color='red', label="Solusi Optimal", zorder=5)
-    ax.set_xlabel("Jumlah Sepatu (X)")
-    ax.set_ylabel("Jumlah Tas (Y)")
-    ax.set_title("Area Feasible Produksi")
+    max_val = max(penjualan + keuntungan)
+    ax.set_ylim(0, max_val * 1.3)
+
+    for bars in [bar1, bar2]:
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2, height + max_val*0.03,
+                    f"{height:,.0f}".replace(",", "."), ha='center', va='bottom', fontsize=10)
+
+    ax.set_ylabel("Rupiah")
+    ax.set_title("Perbandingan Penjualan dan Keuntungan")
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(kategori)
     ax.legend()
-    ax.set_xlim(left=0)
-    ax.set_ylim(bottom=0)
-    ax.grid(True)
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{int(x):,}'.replace(",", ".")))
 
     st.pyplot(fig)
 else:
-    st.error("❌ Solusi tidak ditemukan. Periksa kembali input kendala.")
-
+    st.info("Silakan isi semua nilai input terlebih dahulu.")
